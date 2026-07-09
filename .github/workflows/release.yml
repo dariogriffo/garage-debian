@@ -1,0 +1,94 @@
+name: Build garage for Debian
+
+on:
+  workflow_dispatch:
+    inputs:
+      garage_version:
+        description: The version of garage to build.
+        type: string
+        required: true
+      build_version:
+        description: The build version.
+        type: string
+        required: true
+      architecture:
+        description: Architecture to build (amd64, arm64, armhf, i386, or 'all' for all architectures)
+        type: choice
+        default: 'all'
+        options:
+          - 'all'
+          - 'amd64'
+          - 'arm64'
+          - 'armhf'
+          - 'i386'
+
+permissions:
+  contents: write
+
+jobs:
+  build-garage:
+    name: Build Binary Packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout garage-debian
+        uses: actions/checkout@v4
+
+      - name: Build garage
+        run: ./build_debian.sh ${{ inputs.garage_version }} ${{ inputs.build_version }} ${{ inputs.architecture }} && ./build_ubuntu.sh ${{ inputs.garage_version }} ${{ inputs.build_version }} ${{ inputs.architecture }}
+
+      - name: Upload Binary Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-artifact
+          path: garage_*.deb
+
+  build-src:
+    name: Build Source Packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout garage-debian
+        uses: actions/checkout@v4
+
+      - name: Install dpkg-dev
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends dpkg-dev devscripts wget ca-certificates
+
+      - name: Build source packages
+        run: ./build_src.sh ${{ inputs.garage_version }} ${{ inputs.build_version }}
+
+      - name: Upload Source Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-artifact
+          path: |
+            garage_*.dsc
+            garage_*.orig.tar.gz
+            garage_*.debian.tar.xz
+
+  release-garage:
+    name: Release garage for Debian
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: [build-garage, build-src]
+    steps:
+      - name: Download Binary Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-artifact
+
+      - name: Download Source Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: source-artifact
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          files: |
+            garage_*.deb
+            garage_*.dsc
+            garage_*.orig.tar.gz
+            garage_*.debian.tar.xz
+          name: ${{ inputs.garage_version }}+${{ inputs.build_version }}
+          tag_name: ${{ inputs.garage_version }}+${{ inputs.build_version }}
+          fail_on_unmatched_files: true
