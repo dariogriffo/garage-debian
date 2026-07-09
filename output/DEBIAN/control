@@ -1,0 +1,12 @@
+Source: garage
+Section: net
+Priority: optional
+Maintainer: Dario Griffo <dariogriffo@gmail.com>
+Homepage: https://garagehq.deuxfleurs.fr/
+Package: garage
+Version: garage_VERSION-BUILD_VERSION+DIST
+Architecture: SUPPORTED_ARCHITECTURES
+Depends: adduser
+Description: S3-compatible object store for small self-hosted deployments
+ Garage is a lightweight S3-compatible distributed object store, designed
+ for self-hosted, geo-distributed deployments on commodity hardware.

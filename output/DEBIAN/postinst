@@ -1,0 +1,69 @@
+#!/bin/bash
+set -e
+
+# Create garage group if it doesn't exist
+if ! getent group garage > /dev/null 2>&1; then
+    addgroup --system garage
+fi
+
+# Create garage user if it doesn't exist
+if ! id -u garage > /dev/null 2>&1; then
+    adduser --system --shell /usr/sbin/nologin --gecos 'Garage object store' \
+        --ingroup garage --disabled-password --home /var/lib/garage garage
+fi
+
+# Create data directories
+mkdir -p /var/lib/garage/meta /var/lib/garage/data
+chown -R garage:garage /var/lib/garage
+chmod 750 /var/lib/garage
+
+# Generate a config file with fresh secrets on first install
+if [ ! -f /etc/garage.toml ]; then
+    rpc_secret=$(head -c32 /dev/urandom | od -An -tx1 | tr -d ' \n')
+    admin_token=$(head -c32 /dev/urandom | base64)
+    metrics_token=$(head -c32 /dev/urandom | base64)
+
+    cat > /etc/garage.toml <<EOF
+metadata_dir = "/var/lib/garage/meta"
+data_dir = "/var/lib/garage/data"
+db_engine = "sqlite"
+
+replication_factor = 1
+
+rpc_bind_addr = "[::]:3901"
+rpc_public_addr = "127.0.0.1:3901"
+rpc_secret = "${rpc_secret}"
+
+[s3_api]
+s3_region = "garage"
+api_bind_addr = "[::]:3900"
+root_domain = ".s3.garage.localhost"
+
+[s3_web]
+bind_addr = "[::]:3902"
+root_domain = ".web.garage.localhost"
+index = "index.html"
+
+[admin]
+api_bind_addr = "127.0.0.1:3903"
+admin_token = "${admin_token}"
+metrics_token = "${metrics_token}"
+EOF
+
+    chown root:garage /etc/garage.toml
+    chmod 640 /etc/garage.toml
+fi
+
+# Reload systemd so the new service file is recognized
+if command -v systemctl > /dev/null 2>&1 && systemctl is-system-running --quiet 2>/dev/null; then
+    systemctl daemon-reload || true
+fi
+
+echo "Garage installed. To complete setup:"
+echo "  1. Review the generated configuration: /etc/garage.toml"
+echo "  2. Start the service: sudo systemctl start garage"
+echo "  3. Assign this node a layout, e.g.: sudo garage layout assign -z <zone> -c <capacity> <node-id>"
+echo "  4. Apply the layout: sudo garage layout apply --version 1"
+echo "  5. Enable on boot: sudo systemctl enable garage"
+
+exit 0

@@ -1,0 +1,33 @@
+#!/usr/bin/make -f
+DEB_HOST_ARCH ?= $(shell dpkg-architecture -qDEB_HOST_ARCH)
+GARAGE_VERSION := $(shell dpkg-parsechangelog -S Version | sed 's/[-~].*//')
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+
+override_dh_auto_build:
+	@arch="$(DEB_HOST_ARCH)"; \
+	case "$$arch" in \
+		amd64) GARAGE_TARGET="x86_64-unknown-linux-musl" ;; \
+		arm64) GARAGE_TARGET="aarch64-unknown-linux-musl" ;; \
+		armhf) GARAGE_TARGET="armv6l-unknown-linux-musleabihf" ;; \
+		i386)  GARAGE_TARGET="i686-unknown-linux-musl" ;; \
+		*) echo "Unsupported architecture: $$arch"; exit 1 ;; \
+	esac; \
+	echo "Downloading garage for $$GARAGE_TARGET (v$(GARAGE_VERSION))..."; \
+	wget -q "https://garagehq.deuxfleurs.fr/_releases/v$(GARAGE_VERSION)/$$GARAGE_TARGET/garage" -O garage; \
+	chmod +x garage
+
+override_dh_auto_install:
+	install -D -m 755 garage debian/garage/usr/bin/garage
+
+override_dh_auto_test:
+
+override_dh_auto_clean:
+	rm -f garage
+
+override_dh_strip:
+
+override_dh_shlibdeps:

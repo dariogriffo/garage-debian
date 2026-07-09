@@ -1,0 +1,5 @@
+garage (FULL_VERSION) DIST; urgency=low
+
+  * Package garage garage_VERSION for Debian/Ubuntu.
+
+ -- Dario Griffo <dariogriffo@gmail.com>  Thu, 09 Jul 2026 00:00:00 +0000

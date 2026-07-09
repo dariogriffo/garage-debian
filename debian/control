@@ -1,0 +1,15 @@
+Source: garage
+Section: net
+Priority: optional
+Maintainer: Dario Griffo <dariogriffo@gmail.com>
+Build-Depends: debhelper-compat (= 13), wget, ca-certificates
+Standards-Version: 4.6.2
+Homepage: https://garagehq.deuxfleurs.fr/
+Rules-Requires-Root: no
+
+Package: garage
+Architecture: amd64 arm64 armhf i386
+Depends: ${misc:Depends}, adduser
+Description: S3-compatible object store for small self-hosted deployments
+ Garage is a lightweight S3-compatible distributed object store, designed
+ for self-hosted, geo-distributed deployments on commodity hardware.

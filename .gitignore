@@ -1,0 +1,14 @@
+# Downloaded binaries
+amd64/
+arm64/
+armhf/
+i386/
+
+# Built packages
+*.deb
+*.dsc
+*.orig.tar.gz
+*.debian.tar.xz
+
+.idea/*
+.DS_Store

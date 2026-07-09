@@ -1,0 +1,18 @@
+[Unit]
+Description=Garage S3-compatible object store
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=garage
+Group=garage
+Environment=RUST_LOG=garage=info
+ExecStart=/usr/bin/garage server
+WorkingDirectory=/var/lib/garage
+Restart=on-failure
+RestartSec=2s
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

@@ -11,11 +11,69 @@ if [ -z "$garage_VERSION" ] || [ -z "$BUILD_VERSION" ]; then
 fi
 
 PACKAGE_NAME="garage"
+ORIG_TARBALL="${PACKAGE_NAME}_${garage_VERSION}.orig.tar.gz"
+BUILD_DIR="${PACKAGE_NAME}-${garage_VERSION}"
 
-# TODO: implement garage build
-#
-# This should mirror uv-debian's build_src.sh: download the upstream source
-# tarball for https://git.deuxfleurs.fr/Deuxfleurs/garage, generate a per-distribution debian/changelog,
-# and run `dpkg-source -b` for each supported Debian/Ubuntu distribution.
-echo "build_src.sh for ${PACKAGE_NAME} is not implemented yet."
-exit 1
+echo "Creating Debian/Ubuntu source packages for garage ${garage_VERSION}-${BUILD_VERSION}..."
+
+# Download upstream source tarball (shared .orig.tar.gz across all distributions).
+# git.deuxfleurs.fr (Gitea) always extracts its archives into a top-level "garage/"
+# directory regardless of the ref, so it gets renamed to match BUILD_DIR below.
+if [ ! -f "$ORIG_TARBALL" ]; then
+    echo "Downloading upstream source from git.deuxfleurs.fr..."
+    wget -q "https://git.deuxfleurs.fr/Deuxfleurs/garage/archive/v${garage_VERSION}.tar.gz" -O "$ORIG_TARBALL"
+    echo "  Downloaded $ORIG_TARBALL"
+else
+    echo "  Using existing $ORIG_TARBALL"
+fi
+
+build_source_package() {
+    local dist=$1
+    local FULL_VERSION="${garage_VERSION}-${BUILD_VERSION}~${dist}"
+
+    echo "  Building source package for ${dist} (${FULL_VERSION})..."
+
+    # Clean and recreate build directory from orig tarball
+    rm -rf "$BUILD_DIR" garage
+    tar -xf "$ORIG_TARBALL"
+    # Gitea archives extract as garage/ regardless of the tag; rename to match BUILD_DIR
+    mv garage "$BUILD_DIR"
+
+    # Copy Debian packaging directory
+    cp -r debian "$BUILD_DIR/"
+
+    # Generate distribution-specific changelog (overwrites placeholder)
+    cat > "$BUILD_DIR/debian/changelog" << EOF
+garage (${FULL_VERSION}) ${dist}; urgency=medium
+
+  * New upstream release ${garage_VERSION}.
+
+ -- Dario Griffo <dariogriffo@gmail.com>  $(date -R)
+EOF
+
+    # Build source package (.dsc + .debian.tar.xz); reuses existing .orig.tar.gz
+    dpkg-source -b "$BUILD_DIR"
+
+    rm -rf "$BUILD_DIR"
+    echo "    ✅ ${FULL_VERSION}"
+}
+
+echo ""
+echo "Building Debian source packages..."
+DEBIAN_DISTS=("bookworm" "trixie" "forky" "sid")
+for dist in "${DEBIAN_DISTS[@]}"; do
+    build_source_package "$dist"
+done
+
+echo ""
+echo "Building Ubuntu source packages..."
+UBUNTU_DISTS=("jammy" "noble" "questing" "resolute")
+for dist in "${UBUNTU_DISTS[@]}"; do
+    build_source_package "$dist"
+done
+
+echo ""
+echo "🎉 Source packages created successfully!"
+echo ""
+echo "Generated files:"
+ls -la "${PACKAGE_NAME}_"*.dsc "${PACKAGE_NAME}_"*.orig.tar.gz "${PACKAGE_NAME}_"*.debian.tar.xz 2>/dev/null || true
