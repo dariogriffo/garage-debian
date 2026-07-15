@@ -33,6 +33,11 @@ jobs:
       - name: Checkout garage-debian
         uses: actions/checkout@v4
 
+      - name: Validate upstream license permits paid distribution
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: ./validate_license.sh ${{ inputs.garage_version }}
+
       - name: Build garage
         run: ./build_debian.sh ${{ inputs.garage_version }} ${{ inputs.build_version }} ${{ inputs.architecture }} && ./build_ubuntu.sh ${{ inputs.garage_version }} ${{ inputs.build_version }} ${{ inputs.architecture }}
 
