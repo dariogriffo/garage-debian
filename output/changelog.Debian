@@ -1,4 +1,4 @@
-garage (FULL_VERSION) DIST; urgency=low
+garage (FULL_VERSION) stable; urgency=low
 
   * Package garage garage_VERSION for Debian/Ubuntu.
 

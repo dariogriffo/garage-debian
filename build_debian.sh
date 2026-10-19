@@ -83,34 +83,32 @@ build_architecture() {
         return 1
     fi
 
-    declare -a arr=("bookworm" "trixie" "forky" "sid")
+    # One package for every suite: upstream ships one binary per architecture,
+    # so only the old ~<suite> version suffix ever differed. The fixed ~griffo
+    # keeps it below the distro's own build of the same version.
+    FULL_VERSION="$garage_VERSION-${BUILD_VERSION}~griffo_${build_arch}"
+    echo "  Building $FULL_VERSION"
 
-    for dist in "${arr[@]}"; do
-        FULL_VERSION="$garage_VERSION-${BUILD_VERSION}~${dist}_${build_arch}"
-        echo "  Building $FULL_VERSION"
+    if ! docker build . -t "garage-$build_arch" \
+        --build-arg garage_VERSION="$garage_VERSION" \
+        --build-arg BUILD_VERSION="$BUILD_VERSION" \
+        --build-arg FULL_VERSION="$FULL_VERSION" \
+        --build-arg ARCH="$build_arch" \
+        --build-arg GARAGE_RELEASE="$build_arch"; then
+        echo "❌ Failed to build Docker image for $build_arch"
+        return 1
+    fi
 
-        if ! docker build . -t "garage-$dist-$build_arch" \
-            --build-arg DEBIAN_DIST="$dist" \
-            --build-arg garage_VERSION="$garage_VERSION" \
-            --build-arg BUILD_VERSION="$BUILD_VERSION" \
-            --build-arg FULL_VERSION="$FULL_VERSION" \
-            --build-arg ARCH="$build_arch" \
-            --build-arg GARAGE_RELEASE="$build_arch"; then
-            echo "❌ Failed to build Docker image for $dist on $build_arch"
-            return 1
-        fi
+    id="$(docker create "garage-$build_arch")"
+    if ! docker cp "$id:/garage_$FULL_VERSION.deb" - > "./garage_$FULL_VERSION.deb"; then
+        echo "❌ Failed to extract .deb package for $build_arch"
+        return 1
+    fi
 
-        id="$(docker create "garage-$dist-$build_arch")"
-        if ! docker cp "$id:/garage_$FULL_VERSION.deb" - > "./garage_$FULL_VERSION.deb"; then
-            echo "❌ Failed to extract .deb package for $dist on $build_arch"
-            return 1
-        fi
-
-        if ! tar -xf "./garage_$FULL_VERSION.deb"; then
-            echo "❌ Failed to extract .deb contents for $dist on $build_arch"
-            return 1
-        fi
-    done
+    if ! tar -xf "./garage_$FULL_VERSION.deb"; then
+        echo "❌ Failed to extract .deb contents for $build_arch"
+        return 1
+    fi
 
     # Clean up downloaded binary
     rm -rf "$build_arch" || true
